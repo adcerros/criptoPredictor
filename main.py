@@ -15,11 +15,14 @@ mydata['date'] = pd.to_datetime(mydata.snapped_at, format='%Y-%m-%d')
 # Separo las fechas para normalizar
 mydataDate = mydata[['date']]
 mydata = mydata[['price', 'market_cap', 'total_volume']]
+myPrices = mydata[['price']]
 
 # Normalizacion
 scaler = MinMaxScaler()
 scaler = scaler.fit(mydata)
 mydata = scaler.transform(mydata)
+priceScaler = MinMaxScaler()
+priceScaler = scaler.fit(myPrices)
 
 # Union de las fechas para separar los conjuntos de entrenamiento y test por fecha
 mydata = pd.DataFrame(data=mydata, columns=['price', 'market_cap', 'total_volume'])
@@ -62,14 +65,19 @@ fig, ax = plt.subplots(figsize=(30,12))
 plt.plot(history.history['loss'], label='Training loss')
 plt.plot(history.history['val_loss'], label='Validation loss')
 
-# Analsis y predicciones
 scores = model.evaluate(trainIn, trainOut)
 result = model.predict(testIn)
-print(model.metrics_names[0], scores)
-for i in range(len(result)):
-  print("Expected: " + str(testOut[i]) + " \tPredicted: " + str(result[i][0]) + " \tAbsDiference: " + str(abs(testOut[i] - result[i])[0]))
-fig, ax = plt.subplots(figsize=(30,12))
-plt.plot(testOut, label='Expected values')
-plt.plot(result, label='Predicted values')
 
-# HAY QUE RENORMALIZAR COGIENDO LOS MAX Y LOS MIN DEL PRINCIPIO Y USANDO LA ECUACION CON LOS DATOS DEL BUCLE DE EXPECTED Y PREDICTED
+result = priceScaler.inverse_transform(np.array(result).reshape(-1,1))
+testOut = priceScaler.inverse_transform(testOut.reshape(-1,1))
+
+print(model.metrics_names[0], scores)
+absErrors = []
+for i in range(len(result)):
+  absErrors.append(abs(testOut[i] - result[i]))
+  print("Expected: " + str(testOut[i][0]) + " \tPredicted: " + str(result[i][0]) + " \tAbsDiference: " + str(absErrors[i][0]))
+print()
+fig, ax = plt.subplots(figsize=(30,12))
+plt.plot(testOut, label='Expected values', color='orange')
+plt.plot(result, label='Predicted values',color='red')
+plt.plot(absErrors, label='Abs Errors',color='blue')
