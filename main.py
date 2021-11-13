@@ -48,13 +48,14 @@ testOut=np.array(testOut)
 
 # Implementacion del modelo
 model = tf.keras.Sequential()
+model.add(tf.keras.layers.Dropout(.5))
 model.add(tf.keras.layers.LSTM(units=25))
 model.add(tf.keras.layers.Dense(units=50))
 model.add(tf.keras.layers.Dense(units=50))
 model.add(tf.keras.layers.Dense(units=25))
 model.add(tf.keras.layers.Dense(units=10))
 model.add(tf.keras.layers.Dense(units=1))
-model.compile(loss="mean_squared_error", optimizer = tf.keras.optimizers.SGD(learning_rate=0.01))
+model.compile(loss="mean_squared_error", optimizer = tf.keras.optimizers.SGD(learning_rate=0.01, momentum = 0.1))
 
 callback = tf.keras.callbacks.EarlyStopping(monitor="loss", patience=100)
 history = model.fit(trainIn, trainOut, epochs=1000, batch_size=10, validation_split=0.2, verbose=1, shuffle=True, callbacks=[callback])
@@ -62,8 +63,8 @@ history = model.fit(trainIn, trainOut, epochs=1000, batch_size=10, validation_sp
 # Graficas
 sns.set_theme(style='darkgrid')
 fig, ax = plt.subplots(figsize=(30,12))
-plt.plot(history.history['loss'], label='Training loss')
-plt.plot(history.history['val_loss'], label='Validation loss')
+plt.plot(history.history['loss'], label='Training loss', color='orange')
+plt.plot(history.history['val_loss'], label='Validation loss', color='red')
 
 scores = model.evaluate(trainIn, trainOut)
 result = model.predict(testIn)
