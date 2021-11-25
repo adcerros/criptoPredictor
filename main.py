@@ -8,8 +8,8 @@ from sklearn.preprocessing import MinMaxScaler
 
 
 # Lectura de datos y transformacion de la fecha
-initialData = pd.read_csv("shib_data.csv")
-initialData['date'] = pd.to_datetime(initialData.snapped_at, format='%Y-%m-%d')
+initialData = pd.read_csv("shib-usd.csv")
+initialData['date'] = pd.to_datetime(mydata.snapped_at, format='%Y-%m-%d')
 
 # Reordeenacion y refactorización de los datos
 # Separo las fechas para normalizar y añadirlas posteriormente
@@ -18,7 +18,31 @@ dataDates = initialData[['date']]
 finalData = initialData[['price', 'market_cap', 'total_volume']]
 dataPrices = finalData[['price']]
 
-# Normalizacion de los datos
+
+btcData = pd.read_csv("btc-usd.csv")
+btcData = btcData[['price']] 
+btcData = btcData.rename(columns={'price':'btc_price'})
+
+
+ethData = pd.read_csv("eth-usd.csv")
+ethData = ethData[['price']] 
+ethData = ethData.rename(columns={'price':'eth_price'})
+
+dogeData = pd.read_csv("doge-usd.csv")
+dogeData = dogeData[['price']] 
+dogeData = dogeData.rename(columns={'price':'doge_price'})
+
+# Reordeenacion y refactorización de los datos
+# Separo las fechas para normalizar y añadirlas posteriormente
+dataDates = initialData[['date']]
+# Se redefine el conjunto de datos
+finalData = initialData[['price', 'market_cap', 'total_volume']]
+finalData = pd.concat([finalData,btcData, ethData, dogeData], axis=1)
+# Se extraen aparte los precios para porder denormalizar las salidas
+dataPrices = finalData[['price']]
+
+
+#Normalizacion de los datos
 scaler = MinMaxScaler()
 scaler = scaler.fit(finalData)
 finalData = scaler.transform(finalData)
@@ -27,7 +51,7 @@ priceScaler = MinMaxScaler()
 priceScaler = scaler.fit(dataPrices)
 
 
-finalData = pd.DataFrame(data=finalData, columns=['price', 'market_cap', 'total_volume'])
+finalData = pd.DataFrame(data=finalData, columns=['price', 'market_cap', 'total_volume', 'btc_price', 'eth_price', 'doge_price'])
 
 
 # Se crean los conjuntos de entrenamiento y test con sus entradas y salidas
@@ -52,26 +76,21 @@ trainOut=np.array(trainOut)
 testIn=np.array(testIn)
 testOut=np.array(testOut)
 
+
 # Implementacion del modelo
 model = tf.keras.Sequential()
-model.add(tf.keras.layers.Dropout(.2))
-model.add(tf.keras.layers.LSTM(units=25))
-model.add(tf.keras.layers.Dense(units=50))
-model.add(tf.keras.layers.Dense(units=50))
-model.add(tf.keras.layers.Dense(units=25))
-model.add(tf.keras.layers.Dense(units=10))
+model.add(tf.keras.layers.LSTM(units=10))
 model.add(tf.keras.layers.Dense(units=1))
-model.compile(loss="mean_squared_error", optimizer = tf.keras.optimizers.SGD(learning_rate=0.025, momentum = 0.5))
+model.compile(loss="mse", optimizer = tf.keras.optimizers.Adam(learning_rate=0.0015))
 
-callback = tf.keras.callbacks.EarlyStopping(monitor="loss", patience=100)
-history = model.fit(trainIn, trainOut, epochs=1000, batch_size=10, validation_split=0.2, verbose=1, shuffle=True, callbacks=[callback])
+callback = tf.keras.callbacks.EarlyStopping(monitor="val_loss", patience=100)
+history = model.fit(trainIn, trainOut, epochs=1000, batch_size=2, validation_split=0.1, verbose=1, shuffle=True, callbacks=[callback])
 
 # Graficas
 sns.set_theme(style='darkgrid')
 fig, ax = plt.subplots(figsize=(30,12))
 plt.plot(history.history['loss'], label='Training loss', color='orange')
 plt.plot(history.history['val_loss'], label='Validation loss', color='red')
-
 
 scores = model.evaluate(trainIn, trainOut)
 result = model.predict(testIn)
@@ -89,4 +108,3 @@ fig, ax = plt.subplots(figsize=(30,12))
 plt.plot(testOut, label='Expected values', color='orange')
 plt.plot(result, label='Predicted values',color='red')
 plt.plot(absErrors, label='Abs Errors',color='blue')
-
